@@ -24,7 +24,6 @@ CREATE TABLE fact_shipments (
   order_ts TIMESTAMP, promised_ts TIMESTAMP, delivered_ts TIMESTAMP,
   qty INT, status TEXT
 );
-
 CREATE TABLE anomaly_truth (
   id SERIAL PRIMARY KEY,
   anomaly_type TEXT, supplier_id INT, product_id INT,

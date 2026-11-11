@@ -7,7 +7,7 @@ import numpy as np
 import psycopg2
 from psycopg2.extras import execute_values
 
-DB = dict(host="localhost", port=5432, dbname="control_tower",
+DB = dict(host="localhost", port=5433, dbname="control_tower",
           user="ct_user", password="ct_pass")
 rng = np.random.default_rng(42)       # fixed seed = reproducible results
 DAYS = 60

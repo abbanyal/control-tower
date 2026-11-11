@@ -9,7 +9,7 @@ import psycopg2
 from psycopg2.extras import execute_values
 
 DB = dict(host=os.getenv("PGHOST", "localhost"),
-          port=int(os.getenv("PGPORT", "5432")),
+          port=int(os.getenv("PGPORT", "5433")),
           dbname=os.getenv("PGDATABASE", "control_tower"),
           user=os.getenv("PGUSER", "ct_user"),
           password=os.getenv("PGPASSWORD", "ct_pass"))
