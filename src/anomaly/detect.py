@@ -13,7 +13,7 @@ DB = dict(host=os.getenv("PGHOST", "localhost"),
           password=os.getenv("PGPASSWORD", "ct_pass"))
 
 Z_DELAY, MIN_LATE_DAYS = 3.0, 3.0     # delay rule
-Z_SPIKE, MIN_RATIO = 5.0, 2.0         # spike rule
+Z_SPIKE, MIN_RATIO = 3.5, 2.0         # spike rule
 
 DDL = """
 CREATE TABLE IF NOT EXISTS anomalies (
