@@ -1,8 +1,8 @@
 """
-Simulates 60 days of hourly retail supply chain data and loads it into PostgreSQL.
+Simulates 60 days of hourly retail supply chain data (UTC) and loads it into PostgreSQL.
 Injects two known anomalies and records them in anomaly_truth.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import numpy as np
 import psycopg2
 from psycopg2.extras import execute_values
@@ -41,7 +41,7 @@ DELAY_FROM_DAY, DELAY_TO_DAY, EXTRA_DELAY_DAYS = 30, 40, 5
 SPIKE_PRODUCT = 7             # Soap 4-pack
 SPIKE_DAY, SPIKE_START_HOUR, SPIKE_HOURS, SPIKE_MULT = 45, 10, 10, 5
 
-end = datetime.now().replace(minute=0, second=0, microsecond=0)
+end = datetime.now(timezone.utc).replace(tzinfo=None, minute=0, second=0, microsecond=0)
 start = end - timedelta(days=DAYS)
 delay_start = start + timedelta(days=DELAY_FROM_DAY)
 delay_end = start + timedelta(days=DELAY_TO_DAY)
@@ -100,9 +100,9 @@ for h in range(DAYS * 24):
                 actual += timedelta(days=EXTRA_DELAY_DAYS)   # injected delay
             qty = int(base[key] * 24 * 10)
             open_order[key] = {"actual": actual, "qty": qty}
-            delivered = actual if actual <= end else None
+            delivered = actual if actual < end else None
             status = "delivered" if delivered else "in_transit"
-            ship_rows.append((sup_id, pid, wid, ts, promised, delivered, qty, status))
+            ship_rows.append((sup_id, pid, wid, ts, promised, delivered, qty, status, actual))
 
         sale_rows.append((ts, pid, wid, sold))
         inv_rows.append((ts, pid, wid, stock[key]))
@@ -111,15 +111,17 @@ for h in range(DAYS * 24):
 conn = psycopg2.connect(**DB)
 cur = conn.cursor()
 cur.execute("""TRUNCATE dim_supplier, dim_product, dim_warehouse, fact_inventory,
-               fact_sales, fact_shipments, anomaly_truth RESTART IDENTITY CASCADE""")
-execute_values(cur, "INSERT INTO dim_supplier (supplier_id,name,country,avg_lead_days) VALUES %s",
-               [(i, s[0], s[1], s[2]) for i, s in enumerate(SUPPLIERS, start=1)])
+               fact_sales, fact_shipments, anomaly_truth, sim_params RESTART IDENTITY CASCADE""")
+execute_values(cur, "INSERT INTO dim_supplier (supplier_id,name,country,avg_lead_days,on_time_prob) VALUES %s",
+               [(i, s[0], s[1], s[2], s[3]) for i, s in enumerate(SUPPLIERS, start=1)])
 execute_values(cur, "INSERT INTO dim_warehouse (warehouse_id,name,city) VALUES %s", WAREHOUSES)
 execute_values(cur, "INSERT INTO dim_product (product_id,name,category,supplier_id,reorder_point) VALUES %s", products)
+execute_values(cur, "INSERT INTO sim_params (product_id,warehouse_id,base_rate) VALUES %s",
+               [(k[0], k[1], base[k]) for k in base])
 execute_values(cur, "INSERT INTO fact_inventory (ts,product_id,warehouse_id,stock_units) VALUES %s", inv_rows, page_size=10000)
 execute_values(cur, "INSERT INTO fact_sales (ts,product_id,warehouse_id,units_sold) VALUES %s", sale_rows, page_size=10000)
 execute_values(cur, """INSERT INTO fact_shipments
-    (supplier_id,product_id,warehouse_id,order_ts,promised_ts,delivered_ts,qty,status)
+    (supplier_id,product_id,warehouse_id,order_ts,promised_ts,delivered_ts,qty,status,sim_arrival_ts)
     VALUES %s""", ship_rows)
 cur.execute("""INSERT INTO anomaly_truth (anomaly_type,supplier_id,product_id,start_ts,end_ts,description)
                VALUES ('supplier_delay',%s,NULL,%s,%s,%s), ('demand_spike',NULL,%s,%s,%s,%s)""",
