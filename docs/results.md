@@ -104,3 +104,26 @@
 *Note: The KPI snapshot and daily trend are reproduced as separate query
 outputs supplied for this report. Their values are not reconciled or
 recalculated.*
+
+## Demand forecast (Prophet, 7-day holdout, 20 products)
+
+| Model | WAPE | MAPE |
+|---|---|---|
+| Prophet | 13.0% | 13.7% |
+| Naive (last 7-day mean) | 11.4% | n/a |
+
+Prophet did not beat the naive baseline on this data. Demand is simulated without weekly seasonality
+and history is only about 52 days, so Prophet's seasonality term fits noise.
+
+## What-if: supplier delayed by N days (products at risk, of 4 per supplier)
+
+| Delay | Apex | BlueLine | CorePack | Delta | EastWind |
+|---|---|---|---|---|---|
+| 0 days | 0 | 0 | 0 | 0 | 0 |
+| 3 days | 0 | 1 | 1 | 1 | 0 |
+| 7 days | 4 | 4 | 4 | 4 | 4 |
+| 14 days | 4 | 4 | 4 | 4 | 4 |
+
+## Tests
+
+14 pytest tests pass in 0.41s (data integrity, KPIs, anomaly quality, forecast bounds, what-if monotonicity, simulator idempotency).
