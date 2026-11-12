@@ -64,6 +64,26 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
+  superset:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.superset
+    image: control-tower-superset:latest
+    container_name: ct_superset
+    environment:
+      SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
+    ports:
+      - "8088:8088"
+    volumes:
+      - ./superset/superset_config.py:/app/pythonpath/superset_config.py
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      - /bin/bash
+      - -c
+      - superset db upgrade && (superset fab create-admin --username admin --firstname Admin --lastname User --email admin@example.com --password admin || true) && superset init && /usr/bin/run-server.sh
+
 volumes:
   ct_pgdata:
   airflow_logs:
