@@ -13,6 +13,11 @@ x-airflow-common: &airflow-common
     PGDATABASE: control_tower
     PGUSER: ct_user
     PGPASSWORD: ct_pass
+    SMTP_HOST: ${SMTP_HOST:-ct_mailpit}
+    SMTP_PORT: ${SMTP_PORT:-1025}
+    SMTP_USER: ${SMTP_USER:-}
+    SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+    ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-alerts@controltower.local}
   volumes:
     - ./dags:/opt/airflow/dags
     - ./src:/opt/airflow/src

@@ -4,6 +4,8 @@ import os
 import sys
 import json
 import urllib.request
+import smtplib
+from email.message import EmailMessage
 from datetime import datetime
 import psycopg2
 
@@ -14,6 +16,12 @@ DB = dict(host=os.getenv("PGHOST", "localhost"),
           password=os.getenv("PGPASSWORD", "ct_pass"))
 
 WEBHOOK = os.getenv("SLACK_WEBHOOK_URL", "")
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "1025"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+EMAIL_TO = os.getenv("ALERT_EMAIL_TO", "")
+EMAIL_FROM = os.getenv("ALERT_EMAIL_FROM", "control-tower@localhost")
 STOCKOUT_RATE_MAX = float(os.getenv("ALERT_STOCKOUT_RATE", "0.05"))   # 5% of items out of stock
 ONTIME_MIN_PCT = float(os.getenv("ALERT_ONTIME_MIN", "80"))           # supplier on-time % (7 days)
 COVER_MIN_DAYS = float(os.getenv("ALERT_COVER_DAYS", "5"))            # forecast days of cover
@@ -28,6 +36,17 @@ def send_slack(text):
                                  headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=10) as r:
         return r.status == 200
+
+
+def send_email(subject, body):
+    msg = EmailMessage()
+    msg["Subject"], msg["From"], msg["To"] = subject, EMAIL_FROM, EMAIL_TO
+    msg.set_content(body)
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
+        if SMTP_USER:
+            smtp.starttls()
+            smtp.login(SMTP_USER, SMTP_PASSWORD)
+        smtp.send_message(msg)
 
 
 def collect(cur):
@@ -90,7 +109,14 @@ def run():
             lines.append(f"...and {len(new) - 15} more")
         text = ":rotating_light: *Supply chain control tower*\n" + "\n".join(lines)
         channel = "console"
-        if WEBHOOK:
+        if SMTP_HOST and EMAIL_TO:
+            try:
+                send_email(f"Control Tower: {len(new)} new alert(s)", text)
+                channel = "email"
+            except Exception as e:
+                print(f"Email send failed, will retry next run: {e}")
+                return 0
+        elif WEBHOOK:
             try:
                 send_slack(text)
                 channel = "slack"
@@ -107,9 +133,12 @@ def run():
 
 if __name__ == "__main__":
     if "--test" in sys.argv:
-        if not WEBHOOK:
-            sys.exit("SLACK_WEBHOOK_URL is not set")
-        send_slack(":white_check_mark: Control Tower test alert. Slack is connected.")
+        if SMTP_HOST and EMAIL_TO:
+            send_email("Control Tower test alert", "Email alerts are connected.")
+        elif WEBHOOK:
+            send_slack(":white_check_mark: Control Tower test alert. Slack is connected.")
+        else:
+            sys.exit("Set SMTP_HOST and ALERT_EMAIL_TO (or SLACK_WEBHOOK_URL)")
         print("Test message sent.")
     else:
         run()
