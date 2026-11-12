@@ -127,3 +127,11 @@ and history is only about 52 days, so Prophet's seasonality term fits noise.
 ## Tests
 
 14 pytest tests pass in 0.41s (data integrity, KPIs, anomaly quality, forecast bounds, what-if monotonicity, simulator idempotency).
+
+## Reproducibility note
+
+A fresh clone regenerates the data relative to the current time, so exact numbers vary slightly.
+Demand-spike detection at z >= 4.0 scored precision 0.71 / recall 1.00 on the original run and
+precision 0.64 / recall 0.90 on a fresh-clone run. Supplier-delay detection stayed at 1.00 / 1.00.
+The test thresholds (recall >= 0.8, precision >= 0.5) check that the detector works, not that it
+reproduces one exact figure.
